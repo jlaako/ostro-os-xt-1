@@ -1,0 +1,139 @@
+diff --git a/Makefile.am b/Makefile.am
+index 63df8d2..6f558ed 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
+ 
+ AUTOMAKE_OPTIONS = foreign
+ 
+-SUBDIRS = gst-libs tests
++SUBDIRS = gst-libs pkgconfig
+ 
+ # Extra clean files so that maintainer-clean removes *everything*
+ MAINTAINERCLEANFILES = \
+diff --git a/configure.ac b/configure.ac
+index a825544..9b0a7bf 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1,8 +1,8 @@
+ # codecparsers package version number
+ m4_define([gst_codecparsers_major_version], [1])
+-m4_define([gst_codecparsers_minor_version], [0])
++m4_define([gst_codecparsers_minor_version], [8])
+ m4_define([gst_codecparsers_micro_version], [0])
+-m4_define([gst_codecparsers_pre_version],   [1])
++m4_define([gst_codecparsers_pre_version],   [0])
+ m4_define([gst_codecparsers_version],
+           [gst_codecparsers_major_version.gst_codecparsers_minor_version.gst_codecparsers_micro_version])
+ m4_if(gst_codecparsers_pre_version, [0], [], [
+@@ -80,7 +80,6 @@ AC_SUBST(GLIB_VERSION_REQUIRED)
+ dnl GStreamer Core
+ PKG_CHECK_MODULES([GST],       [gstreamer-$GST_MAJORMINOR >= gst_version])
+ PKG_CHECK_MODULES([GST_BASE],  [gstreamer-base-$GST_MAJORMINOR >= gst_version])
+-PKG_CHECK_MODULES([GST_CHECK], [gstreamer-check-$GST_MAJORMINOR])
+ 
+ dnl GST_ALL_LDFLAGS:
+ dnl LDFLAGS really should only contain flags, not libs - they get added before
+@@ -93,8 +92,8 @@ AC_CONFIG_FILES([
+     gst-libs/Makefile
+     gst-libs/gst/Makefile
+     gst-libs/gst/codecparsers/Makefile
+-    tests/Makefile
+-    tests/check/Makefile
+-    tests/check/libs/Makefile
++    pkgconfig/Makefile
++    pkgconfig/gstreamer-codecparsers.pc
++    pkgconfig/gstreamer-codecparsers-uninstalled.pc
+ ])
+ AC_OUTPUT
+diff --git a/gst-libs/gst/codecparsers/Makefile.am b/gst-libs/gst/codecparsers/Makefile.am
+index 1efbf29..5c3e633 100644
+--- a/gst-libs/gst/codecparsers/Makefile.am
++++ b/gst-libs/gst/codecparsers/Makefile.am
+@@ -16,13 +16,13 @@ noinst_HEADERS = parserutils.h nalutils.h dboolhuff.h vp8utils.h
+ libgstcodecparsers_@GST_API_VERSION@include_HEADERS = \
+ 	gstmpegvideoparser.h gsth264parser.h gstvc1parser.h gstmpeg4parser.h \
+ 	gsth265parser.h \
+-	gsth265parser.h gstvp8parser.h gstvp8rangedecoder.h \
++	gstvp8parser.h gstvp8rangedecoder.h \
+ 	gstjpegparser.h \
+ 	gstmpegvideometa.h \
+ 	$(NULL)
+ 
+ libgstcodecparsers_@GST_API_VERSION@_la_CFLAGS = \
+-	-I$(top_builddir)/gst-libs \
++	-I$(top_srcdir)/gst-libs \
+ 	$(GST_PLUGINS_BAD_CFLAGS) \
+ 	-DGST_USE_UNSTABLE_API \
+ 	$(GST_CFLAGS) \
+diff --git a/pkgconfig/Makefile.am b/pkgconfig/Makefile.am
+new file mode 100644
+index 0000000..f22194e
+--- /dev/null
++++ b/pkgconfig/Makefile.am
+@@ -0,0 +1,29 @@
++
++### all of the standard pc files we need to generate
++pcverfiles =  \
++	gstreamer-codecparsers-@GST_API_VERSION@.pc
++
++pcverfiles_uninstalled = \
++	gstreamer-codecparsers-@GST_API_VERSION@-uninstalled.pc
++
++all-local: $(pcverfiles) $(pcverfiles_uninstalled)
++
++cp_verbose = $(cp_verbose_$(V))
++cp_verbose_ = $(cp_verbose_$(AM_DEFAULT_VERBOSITY))
++cp_verbose_0 = @echo "  CP     $@";
++
++### how to generate versioned .pc files from .pc files in this dir
++%-@GST_API_VERSION@.pc: %.pc
++	$(cp_verbose_0)cp $< $@
++%-@GST_API_VERSION@-uninstalled.pc: %-uninstalled.pc
++	$(cp_verbose_0)cp $< $@
++
++pkgconfigdir = $(libdir)/pkgconfig
++pkgconfig_DATA = $(pcverfiles)
++
++CLEANFILES = $(pcverfiles) $(pcverfiles_uninstalled)
++pcinfiles = \
++           gstreamer-codecparsers.pc.in gstreamer-codecparsers-uninstalled.pc.in
++
++DISTCLEANFILES = $(pcinfiles:.in=)
++EXTRA_DIST = $(pcinfiles)
+diff --git a/pkgconfig/gstreamer-codecparsers-uninstalled.pc.in b/pkgconfig/gstreamer-codecparsers-uninstalled.pc.in
+new file mode 100644
+index 0000000..71ed771
+--- /dev/null
++++ b/pkgconfig/gstreamer-codecparsers-uninstalled.pc.in
+@@ -0,0 +1,12 @@
++prefix=
++exec_prefix=
++libdir=${pcfiledir}/../gst-libs/gst/codecparsers/.libs
++includedir=${pcfiledir}/../gst-libs
++
++Name: GStreamer codec parsers, Uninstalled
++Description: Bitstream parsers for GStreamer elements, uninstalled
++Requires: gstreamer-@GST_API_VERSION@ gstreamer-base-@GST_API_VERSION@
++Version: @VERSION@
++Libs: -L${libdir} -lgstcodecparsers-@GST_API_VERSION@
++Cflags: -I${includedir}
++
+diff --git a/pkgconfig/gstreamer-codecparsers.pc.in b/pkgconfig/gstreamer-codecparsers.pc.in
+new file mode 100644
+index 0000000..9d1010a
+--- /dev/null
++++ b/pkgconfig/gstreamer-codecparsers.pc.in
+@@ -0,0 +1,12 @@
++prefix=@prefix@
++exec_prefix=@exec_prefix@
++libdir=@libdir@
++includedir=@includedir@/gstreamer-@GST_API_VERSION@
++
++Name: GStreamer codec parsers
++Description: Bitstream parsers for GStreamer elements
++Requires: gstreamer-@GST_API_VERSION@ gstreamer-base-@GST_API_VERSION@
++Version: @VERSION@
++Libs: -L${libdir} -lgstcodecparsers-@GST_API_VERSION@
++Cflags: -I${includedir}
++
